@@ -10,6 +10,16 @@ class DrawableDensity:
         self.name = name
         self.path = path
         self.scaleFactor = scaleFactor
+
+class Colors:
+    PURPLE = '\033[95m'
+    BLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 ################################################################
 
 ################# Directories configuration ####################
@@ -30,35 +40,36 @@ DrawableDensity("XXX-HDPI", dirHdpiXXX, 1.0)
 ]
 # ScaleFactor with origin in XXXHDPI density. Source: http://jennift.com/dpical.html
 ################################################################
-
-# Variables
-upToDateFiles = []
-deletedFiles = []
-newFiles = []
-modifiedFiles = []
+STORAGE_FILE_NAME = "warp_storage"
 
 def main():
+    # Variables
+    upToDateFiles = []
+    deletedFiles = []
+    newFiles = []
+    modifiedFiles = []
+
     greet()
-    makeDirectories()
-    processRawFiles()
-    processUpToDateAssets()
-    processNewAssets()
-    processModifiedAssets()
-    processDeletedAssets()
+    makeRequiredDirectories()
+    processRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles)
+    processUpToDateAssets(upToDateFiles)
+    processNewAssets(newFiles)
+    processModifiedAssets(modifiedFiles)
+    processDeletedAssets(deletedFiles)
     goodbye()
 
 # Greet
 def greet():
-    print("WARP (Wolox Assets Rapid Processor)")
+    print(Colors.BOLD + Colors.PURPLE + "WARP (Wolox Assets Rapid Processor)" + Colors.ENDC)
 
-def makeDirectories():
+def makeRequiredDirectories():
     # Make required directories
     for directory in allDirectories:
         if not os.path.exists(directory):
             print("Making directory " + directory)
             os.makedirs(directory)
 
-def processRawFiles():
+def processRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles):
     # Dictionary of previously hashed files: <file path, MD5 hash>
     storedHashedFiles = loadHashedFiles()
     # Dictionary of newly hashed files and ready to compare for diff: <file path, MD5 hash>
@@ -102,37 +113,45 @@ def hashRawFiles():
 
 # Store a dictionary of files to Hash
 def saveHashedFiles(filesToHash):
-    with open(dirRaw + "warp_storage.pkl", 'wb') as hashStorage:
+    with open(dirRaw + STORAGE_FILE_NAME + ".pkl", "wb") as hashStorage:
         pickle.dump(filesToHash, hashStorage, pickle.HIGHEST_PROTOCOL)
 
 # Retrieve a dictionary of hashed files
 def loadHashedFiles():
     try:
-        with open(dirRaw + "warp_storage.pkl", 'rb') as hashStorage:
+        with open(dirRaw + STORAGE_FILE_NAME + ".pkl", "rb") as hashStorage:
             return pickle.load(hashStorage)
     except IOError:
         return {}
 
-# Process files that shouldn't be compress or reescaled
-def processUpToDateAssets():
+# Process files that we found in a previous run by the script
+def processUpToDateAssets(upToDateFiles):
     for path in upToDateFiles:
-        print(os.path.basename(path) + ": UP TO DATE")
+        print(Colors.BLUE + os.path.basename(path) + ": STATE > UP TO DATE" + Colors.ENDC)
 
-def processNewAssets():
+# Process files that are new to the project
+def processNewAssets(newFiles):
     for path in newFiles:
-        print(os.path.basename(path) + ": NEW")
+        print(Colors.BLUE + os.path.basename(path) + ": STATE > NEW" + Colors.ENDC)
         processPngAsset(path)
 
-def processModifiedAssets():
+# Process files that were modified in the project
+def processModifiedAssets(modifiedFiles):
     for path in modifiedFiles:
-        print("TODO: process modified asset (" + os.path.basename(path) + ")")
+        assetName = os.path.basename(path)
+        print(Colors.BLUE + assetName + ": STATE > CHANGED" + Colors.ENDC)
+        deleteAsset(assetName)
+        processPngAsset(path)
 
-def processDeletedAssets():
+# Process files that were deleted from the project
+def processDeletedAssets(deletedFiles):
     for path in deletedFiles:
-        print("TODO: process deleted asset (" + os.path.basename(path) + ")")
+        assetName = os.path.basename(path)
+        print(Colors.BLUE + assetName + ": STATE > REMOVED" + Colors.ENDC)
+        deleteAsset(assetName)
 
+# Scale and compress the asset for every screen density
 def processPngAsset(assetPath):
-    # Scale and compress the asset for every screen density
     filename = os.path.basename(assetPath)
     for density in drawablesDensities:
         scaleImage(filename, assetPath, density)
@@ -149,9 +168,15 @@ def compressPNG(filename, assetPath, drawableDensity):
     print(filename + ": COMPRESSING for " + drawableDensity.name)
     os.system("pngquant {0} --force --output {1}".format(assetPath, drawableDensity.path + filename))
 
+# Remove asset in every screen density
+def deleteAsset(assetName):
+    for density in drawablesDensities:
+        os.remove(density.path + assetName)
+        print(assetName + ": DELETED asset for " + density.name)
+
 # Goodbye
 def goodbye():
-    print("WARP complete!")
+    print(Colors.OKGREEN + "WARP complete!" + Colors.ENDC)
 
 # Main call
 main()
