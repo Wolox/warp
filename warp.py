@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import os
 import glob
+import hashlib
+import pickle
 
 ######################### Classes ##############################
 class DrawableDensity:
@@ -8,11 +10,6 @@ class DrawableDensity:
         self.name = name
         self.path = path
         self.scaleFactor = scaleFactor
-
-class HashedFile:
-    def __init__(self, name, md5Hash):
-        self.name = name
-        self.md5Hash = md5Hash
 ################################################################
 
 ################# Directories configuration ####################
@@ -34,10 +31,20 @@ DrawableDensity("XXX-HDPI", dirHdpiXXX, 1.0)
 # ScaleFactor with origin in XXXHDPI density. Source: http://jennift.com/dpical.html
 ################################################################
 
+# Variables
+upToDateFiles = []
+deletedFiles = []
+newFiles = []
+modifiedFiles = []
+
 def main():
     greet()
     makeDirectories()
-    processPNGs()
+    processRawFiles()
+    processUpToDateAssets()
+    processNewAssets()
+    processModifiedAssets()
+    processDeletedAssets()
     goodbye()
 
 # Greet
@@ -51,18 +58,86 @@ def makeDirectories():
             print("Making directory " + directory)
             os.makedirs(directory)
 
-def processPNGs():
-    # List PNG assets paths from the raw directory
-    print("Analyzing raw PNGs assets...")
-    pngAssetsPaths = glob.glob(dirRaw + "*.png")
+def processRawFiles():
+    # Dictionary of previously hashed files: <file path, MD5 hash>
+    storedHashedFiles = loadHashedFiles()
+    # Dictionary of newly hashed files and ready to compare for diff: <file path, MD5 hash>
+    recentlyHashedFiles = hashRawFiles()
 
-    # Iterate over every PNG asset, then scale and compress for every screen density
-    for assetPath in pngAssetsPaths:
-        filename = os.path.basename(assetPath)
-        for density in drawablesDensities:
-            scaleImage(filename, assetPath, density)
-            compressPNG(filename, density.path + filename, density)
-        print(filename + ": Processed the asset for every screen density")
+    saveHashedFiles(recentlyHashedFiles)
+
+    # Classify files by comparing recent hashes with previously hased files
+    for path, md5 in recentlyHashedFiles.iteritems():
+        if path in storedHashedFiles:
+            # CASE 1: The file is present and the hashes are the same (the file is the same)
+            if md5 == recentlyHashedFiles[path]:
+                upToDateFiles.append(path)
+            # CASE 2: The file is present, but the hashes doesn't match (the file has been modified)
+            else:
+                modifiedFiles.append(path)
+
+            del storedHashedFiles[path] # Removed the processed entry
+        # CASE 3: The file isn't present on the previous hash dictinoary, it must be a new file
+        else:
+            newFiles.append(path)
+
+    # The leftovers in the previous hash dictionary must be the deleted files
+    for path in storedHashedFiles:
+        deletedFiles.append(path)
+
+# Hash (MD5) files in the raw directory and return them as a dictionary <file path, MD5 hash>
+def hashRawFiles():
+    BLOCKSIZE = 65536
+    hashedFiles = {}
+    # Hash files in the raw directory
+    for filePath in glob.glob(dirRaw + "*.png"):
+        hasher = hashlib.md5()
+        with open(filePath, 'rb') as fileToHash:
+            buf = fileToHash.read(BLOCKSIZE)
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = fileToHash.read(BLOCKSIZE)
+        hashedFiles.update({filePath:hasher.hexdigest()})
+    return hashedFiles
+
+# Store a dictionary of files to Hash
+def saveHashedFiles(filesToHash):
+    with open(dirRaw + "warp_storage.pkl", 'wb') as hashStorage:
+        pickle.dump(filesToHash, hashStorage, pickle.HIGHEST_PROTOCOL)
+
+# Retrieve a dictionary of hashed files
+def loadHashedFiles():
+    try:
+        with open(dirRaw + "warp_storage.pkl", 'rb') as hashStorage:
+            return pickle.load(hashStorage)
+    except IOError:
+        return {}
+
+# Process files that shouldn't be compress or reescaled
+def processUpToDateAssets():
+    for path in upToDateFiles:
+        print(os.path.basename(path) + ": UP TO DATE")
+
+def processNewAssets():
+    for path in newFiles:
+        print(os.path.basename(path) + ": NEW")
+        processPngAsset(path)
+
+def processModifiedAssets():
+    for path in modifiedFiles:
+        print("TODO: process modified asset (" + os.path.basename(path) + ")")
+
+def processDeletedAssets():
+    for path in deletedFiles:
+        print("TODO: process deleted asset (" + os.path.basename(path) + ")")
+
+def processPngAsset(assetPath):
+    # Scale and compress the asset for every screen density
+    filename = os.path.basename(assetPath)
+    for density in drawablesDensities:
+        scaleImage(filename, assetPath, density)
+        compressPNG(filename, density.path + filename, density)
+    print(filename + ": Processed the asset for every screen density")
 
 # Scale the asset for a given screen density using FFMPEG
 def scaleImage(filename, assetPath, drawableDensity):
