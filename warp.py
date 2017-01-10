@@ -60,7 +60,19 @@ def main():
 
 # Greet
 def greet():
-    print(Colors.BOLD + Colors.PURPLE + "WARP (Wolox Assets Rapid Processor)" + Colors.ENDC)
+    message = [
+    "**********************************",
+    "*  _       _____    ____  ____   *",
+    "* | |     / /   |  / __ \/ __ \\  *",
+    "* | | /| / / /| | / /_/ / /_/ /  *",
+    "* | |/ |/ / ___ |/ _, _/ ____/   *",
+    "* |__/|__/_/  |_/_/ |_/_/        *",
+    "*                                *",
+    "*  Wolox Assets Rapid Processor  *",
+    "**********************************"
+    ]
+    for line in message:
+        print(Colors.PURPLE + line + Colors.ENDC)
 
 def makeRequiredDirectories():
     # Make required directories
