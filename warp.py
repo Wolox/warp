@@ -3,6 +3,7 @@ import os
 import glob
 import hashlib
 import pickle
+import argparse
 
 ######################### Classes ##############################
 class DrawableDensity:
@@ -26,32 +27,32 @@ class Colors:
 dirRoot = "./"
 dirRaw = dirRoot + "raw/"
 dirAssets = dirRoot + "drawables/"
-dirHdpi = dirAssets + "drawable-hdpi/"
-dirHdpiX = dirAssets + "drawable-xhdpi/"
-dirHdpiXX = dirAssets + "drawable-xxhdpi/"
-dirHdpiXXX = dirAssets + "drawable-xxxhdpi/"
 
-allDirectories = [dirRaw, dirHdpi, dirHdpiX, dirHdpiXX, dirHdpiXXX]
 drawablesDensities = [
-DrawableDensity("HDPI", dirHdpi, 0.375),
-DrawableDensity("X-HDPI", dirHdpiX, 0.5),
-DrawableDensity("XX-HDPI", dirHdpiXX, 0.75),
-DrawableDensity("XXX-HDPI", dirHdpiXXX, 1.0)
+DrawableDensity("HDPI", "drawable-hdpi/", 0.375),
+DrawableDensity("X-HDPI", "drawable-xhdpi/", 0.5),
+DrawableDensity("XX-HDPI", "drawable-xxhdpi/", 0.75),
+DrawableDensity("XXX-HDPI", "drawable-xxxhdpi/", 1.0)
 ]
 # ScaleFactor with origin in XXXHDPI density. Source: http://jennift.com/dpical.html
 ################################################################
+
+# Constants
 STORAGE_FILE_NAME = "warp_storage"
 
-def main():
-    # Variables
-    upToDateFiles = []
-    deletedFiles = []
-    newFiles = []
-    modifiedFiles = []
+# Variables
+upToDateFiles = []
+deletedFiles = []
+newFiles = []
+modifiedFiles = []
+targetPlatform = ""
 
+# Script entry point
+def main():
     greet()
+    parseCommandLineOptions()
     makeRequiredDirectories()
-    processRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles)
+    classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles)
     processUpToDateAssets(upToDateFiles)
     processNewAssets(newFiles)
     processModifiedAssets(modifiedFiles)
@@ -60,28 +61,68 @@ def main():
 
 # Greet
 def greet():
-    message = [
-    "**********************************",
-    "*  _       _____    ____  ____   *",
-    "* | |     / /   |  / __ \/ __ \\  *",
-    "* | | /| / / /| | / /_/ / /_/ /  *",
-    "* | |/ |/ / ___ |/ _, _/ ____/   *",
-    "* |__/|__/_/  |_/_/ |_/_/        *",
-    "*                                *",
-    "*  Wolox Assets Rapid Processor  *",
-    "**********************************"
+    logo = [
+    "                                      ",
+    "    **********************************",
+    "    *  _       _____    ____  ____   *",
+    "    * | |     / /   |  / __ \/ __ \\  *",
+    "    * | | /| / / /| | / /_/ / /_/ /  *",
+    "    * | |/ |/ / ___ |/ _, _/ ____/   *",
+    "    * |__/|__/_/  |_/_/ |_/_/        *",
+    "    *                                *",
+    "    *  Wolox Assets Rapid Processor  *",
+    "    **********************************",
+    "                                      "
     ]
-    for line in message:
+    for line in logo:
         print(Colors.PURPLE + line + Colors.ENDC)
 
-def makeRequiredDirectories():
-    # Make required directories
-    for directory in allDirectories:
-        if not os.path.exists(directory):
-            print("Making directory " + directory)
-            os.makedirs(directory)
+# Parse command line options and store them in variables
+def parseCommandLineOptions():
+    parser = argparse.ArgumentParser(description="Seamless scaling and compression of assets for every screen density")
+    parser.add_argument("-t", "--target",
+    dest="target",
+    required=True,
+    choices=["android", "ios"],
+    help="Specifies the platform where the assets will be used",
+    metavar="TARGET")
+    parser.add_argument("-i", "--input",
+    dest="input",
+    help="Directory where the raw assets are located",
+    metavar="DIRECTORY")
+    parser.add_argument("-o", "--output",
+    dest="output",
+    help="Directory where the procesed assets will be placed",
+    metavar="DIRECTORY")
 
-def processRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles):
+    global targetPlatform
+    global dirRaw
+    global dirAssets
+
+    args = parser.parse_args()
+    targetPlatform = args.target
+    if args.input:
+        dirRaw = args.input
+    if args.output:
+        dirAssets = args.output
+
+# Make the required directories to process asssets if they doesn't exist already
+def makeRequiredDirectories():
+
+
+    # Make raw directory if needed
+    if not os.path.exists(dirRaw):
+        print("Making directory " + dirRaw)
+        os.makedirs(dirRaw)
+
+    # Make required processed assets directories
+    for drawable in drawablesDensities:
+        if not os.path.exists(dirAssets + drawable.path):
+            print("Making directory " + dirAssets + drawable.path)
+            os.makedirs(dirAssets + drawable.path)
+
+# Classify raw files into collections of up to date, deleted, new and modified files
+def classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles):
     # Dictionary of previously hashed files: <file path, MD5 hash>
     storedHashedFiles = loadHashedFiles()
     # Dictionary of newly hashed files and ready to compare for diff: <file path, MD5 hash>
@@ -167,23 +208,23 @@ def processPngAsset(assetPath):
     filename = os.path.basename(assetPath)
     for density in drawablesDensities:
         scaleImage(filename, assetPath, density)
-        compressPNG(filename, density.path + filename, density)
+        compressPNG(filename, dirAssets + density.path + filename, density)
     print(filename + ": Processed the asset for every screen density")
 
 # Scale the asset for a given screen density using FFMPEG
 def scaleImage(filename, assetPath, drawableDensity):
     print("{0}: SCALING to {1}".format(filename, drawableDensity.name))
-    os.system("ffmpeg -loglevel error -y -i {0} -vf scale=iw*{1}:-1 {2}".format(assetPath, drawableDensity.scaleFactor, drawableDensity.path + filename))
+    os.system("ffmpeg -loglevel error -y -i {0} -vf scale=iw*{1}:-1 {2}".format(assetPath, drawableDensity.scaleFactor, dirAssets + drawableDensity.path + filename))
 
 # Compress a PNG asset using PNGQuant
 def compressPNG(filename, assetPath, drawableDensity):
     print(filename + ": COMPRESSING for " + drawableDensity.name)
-    os.system("pngquant {0} --force --output {1}".format(assetPath, drawableDensity.path + filename))
+    os.system("pngquant {0} --force --output {1}".format(assetPath, dirAssets + drawableDensity.path + filename))
 
 # Remove asset in every screen density
 def deleteAsset(assetName):
     for density in drawablesDensities:
-        os.remove(density.path + assetName)
+        os.remove( dirAssets + density.path + assetName)
         print(assetName + ": DELETED asset for " + density.name)
 
 # Goodbye
