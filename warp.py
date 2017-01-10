@@ -125,13 +125,13 @@ def hashRawFiles():
 
 # Store a dictionary of files to Hash
 def saveHashedFiles(filesToHash):
-    with open(dirRaw + STORAGE_FILE_NAME + ".pkl", "wb") as hashStorage:
+    with open(dirRaw + "." + STORAGE_FILE_NAME, "wb") as hashStorage:
         pickle.dump(filesToHash, hashStorage, pickle.HIGHEST_PROTOCOL)
 
 # Retrieve a dictionary of hashed files
 def loadHashedFiles():
     try:
-        with open(dirRaw + STORAGE_FILE_NAME + ".pkl", "rb") as hashStorage:
+        with open(dirRaw + "." + STORAGE_FILE_NAME, "rb") as hashStorage:
             return pickle.load(hashStorage)
     except IOError:
         return {}
