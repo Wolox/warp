@@ -1,9 +1,5 @@
 #!/usr/bin/python
-import os
-import glob
-import hashlib
-import pickle
-import argparse
+import os, glob, hashlib, pickle, argparse, shutil
 
 ######################### Classes ##############################
 class DrawableDensity:
@@ -15,9 +11,9 @@ class DrawableDensity:
 class Colors:
     PURPLE = '\033[95m'
     BLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
@@ -38,19 +34,23 @@ DrawableDensity("XXX-HDPI", "drawable-xxxhdpi/", 1.0)
 ################################################################
 
 # Constants
-STORAGE_FILE_NAME = "warp_storage"
+STORAGE_FILE_NAME = ".warp_storage"
+TARGET_ANDROID = "android"
+TARGET_IOS = "ios"
 
-# Variables
+# Variables with default values
 upToDateFiles = []
 deletedFiles = []
 newFiles = []
 modifiedFiles = []
 targetPlatform = ""
+shouldCleanProject = False
 
 # Script entry point
 def main():
-    greet()
     parseCommandLineOptions()
+    greet()
+    if shouldCleanProject: cleanProject()
     makeRequiredDirectories()
     classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles)
     processUpToDateAssets(upToDateFiles)
@@ -83,33 +83,47 @@ def parseCommandLineOptions():
     parser.add_argument("-t", "--target",
     dest="target",
     required=True,
-    choices=["android", "ios"],
-    help="Specifies the platform where the assets will be used",
-    metavar="TARGET")
+    choices=[TARGET_ANDROID, TARGET_IOS],
+    help="specifies the platform where the assets will be used",
+    metavar=TARGET_ANDROID +"/" + TARGET_IOS)
     parser.add_argument("-i", "--input",
     dest="input",
-    help="Directory where the raw assets are located",
+    help="directory where the raw assets are located",
     metavar="DIRECTORY")
     parser.add_argument("-o", "--output",
     dest="output",
-    help="Directory where the procesed assets will be placed",
+    help="directory where the processed assets will be placed",
     metavar="DIRECTORY")
+    parser.add_argument("-c", "--clean",
+    action="store_true",
+    default=False,
+    dest="clean",
+    help="force every asset to be processed from scratch")
 
+    # Save parsed options as global variables
     global targetPlatform
     global dirRaw
     global dirAssets
+    global shouldCleanProject
 
     args = parser.parse_args()
     targetPlatform = args.target
-    if args.input:
-        dirRaw = args.input
-    if args.output:
-        dirAssets = args.output
+    if args.input: dirRaw = args.input
+    if args.output: dirAssets = args.output
+    shouldCleanProject = args.clean
+
+# Clears previously processed assets and the hash storage file
+def cleanProject():
+    print(Colors.YELLOW + "Cleaning previously processed assets..." + Colors.ENDC)
+    if dirRaw != "/" and os.path.exists(dirRaw + STORAGE_FILE_NAME):
+        os.remove(dirRaw + STORAGE_FILE_NAME)
+
+    if dirAssets != "/" and os.path.exists(dirAssets):
+        shutil.rmtree(dirAssets)
+    print(Colors.YELLOW + "Assets cleared" + Colors.ENDC)
 
 # Make the required directories to process asssets if they doesn't exist already
 def makeRequiredDirectories():
-
-
     # Make raw directory if needed
     if not os.path.exists(dirRaw):
         print("Making directory " + dirRaw)
@@ -166,13 +180,13 @@ def hashRawFiles():
 
 # Store a dictionary of files to Hash
 def saveHashedFiles(filesToHash):
-    with open(dirRaw + "." + STORAGE_FILE_NAME, "wb") as hashStorage:
+    with open(dirRaw + STORAGE_FILE_NAME, "wb") as hashStorage:
         pickle.dump(filesToHash, hashStorage, pickle.HIGHEST_PROTOCOL)
 
 # Retrieve a dictionary of hashed files
 def loadHashedFiles():
     try:
-        with open(dirRaw + "." + STORAGE_FILE_NAME, "rb") as hashStorage:
+        with open(dirRaw + STORAGE_FILE_NAME, "rb") as hashStorage:
             return pickle.load(hashStorage)
     except IOError:
         return {}
@@ -229,7 +243,7 @@ def deleteAsset(assetName):
 
 # Goodbye
 def goodbye():
-    print(Colors.OKGREEN + "WARP complete!" + Colors.ENDC)
+    print(Colors.GREEN + "WARP complete!" + Colors.ENDC)
 
 # Main call
 main()
