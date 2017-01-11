@@ -2,10 +2,16 @@
 import os, glob, hashlib, pickle, argparse, shutil
 
 ######################### Classes ##############################
-class DrawableDensity:
+class AndroidDensity:
     def __init__(self, name, path, scaleFactor):
         self.name = name
         self.path = path
+        self.scaleFactor = scaleFactor
+
+class IosDensity:
+    def __init__(self, name, suffix, scaleFactor):
+        self.name = name
+        self.suffix = suffix
         self.scaleFactor = scaleFactor
 
 class Colors:
@@ -24,13 +30,20 @@ dirRoot = "./"
 dirRaw = dirRoot + "raw/"
 dirAssets = dirRoot + "drawables/"
 
-drawablesDensities = [
-DrawableDensity("HDPI", "drawable-hdpi/", 0.375),
-DrawableDensity("X-HDPI", "drawable-xhdpi/", 0.5),
-DrawableDensity("XX-HDPI", "drawable-xxhdpi/", 0.75),
-DrawableDensity("XXX-HDPI", "drawable-xxxhdpi/", 1.0)
-]
 # ScaleFactor with origin in XXXHDPI density. Source: http://jennift.com/dpical.html
+androidDensities = [
+AndroidDensity("HDPI", "drawable-hdpi/", 0.375),
+AndroidDensity("X-HDPI", "drawable-xhdpi/", 0.5),
+AndroidDensity("XX-HDPI", "drawable-xxhdpi/", 0.75),
+AndroidDensity("XXX-HDPI", "drawable-xxxhdpi/", 1.0)
+]
+
+# ScaleFactor with origin in @3X density.
+iosDensities = [
+IosDensity("@1X", "", 0.333333),
+IosDensity("@2X", "@2X", 0.666666),
+IosDensity("@3X", "@3X", 1.0)
+]
 ################################################################
 
 # Constants
@@ -126,14 +139,22 @@ def cleanProject():
 def makeRequiredDirectories():
     # Make raw directory if needed
     if not os.path.exists(dirRaw):
-        print("Making directory " + dirRaw)
+        print("Making directory for raw assets: " + dirRaw)
         os.makedirs(dirRaw)
 
-    # Make required processed assets directories
-    for drawable in drawablesDensities:
-        if not os.path.exists(dirAssets + drawable.path):
-            print("Making directory " + dirAssets + drawable.path)
-            os.makedirs(dirAssets + drawable.path)
+    # Make directories for Android processed assets
+    if targetPlatform == TARGET_ANDROID:
+        for density in androidDensities:
+            if not os.path.exists(dirAssets + density.path):
+                print("Making directory for Android assets: " + dirAssets + density.path)
+                os.makedirs(dirAssets + density.path)
+
+    # Make directories for iOS processed assets
+    else:
+        if not os.path.exists(dirAssets):
+            print("Making directory for iOS assets:" + dirAssets)
+            os.makedirs(dirAssets)
+
 
 # Classify raw files into collections of up to date, deleted, new and modified files
 def classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles):
@@ -200,7 +221,7 @@ def processUpToDateAssets(upToDateFiles):
 def processNewAssets(newFiles):
     for path in newFiles:
         print(Colors.BLUE + os.path.basename(path) + ": STATE > NEW" + Colors.ENDC)
-        processPngAsset(path)
+        processRawPngAsset(path)
 
 # Process files that were modified in the project
 def processModifiedAssets(modifiedFiles):
@@ -208,7 +229,7 @@ def processModifiedAssets(modifiedFiles):
         assetName = os.path.basename(path)
         print(Colors.BLUE + assetName + ": STATE > CHANGED" + Colors.ENDC)
         deleteAsset(assetName)
-        processPngAsset(path)
+        processRawPngAsset(path)
 
 # Process files that were deleted from the project
 def processDeletedAssets(deletedFiles):
@@ -218,26 +239,42 @@ def processDeletedAssets(deletedFiles):
         deleteAsset(assetName)
 
 # Scale and compress the asset for every screen density
-def processPngAsset(assetPath):
-    filename = os.path.basename(assetPath)
-    for density in drawablesDensities:
-        scaleImage(filename, assetPath, density)
-        compressPNG(filename, dirAssets + density.path + filename, density)
+def processRawPngAsset(rawAssetPath):
+    filename = os.path.basename(rawAssetPath)
+    filenameAndExtension = os.path.splitext(filename) # "example.png" -> ["example", ".png"]
+
+    # Process assets for Android (e.g: /drawable-xxhdpi/...)
+    if targetPlatform == TARGET_ANDROID:
+        for density in androidDensities:
+            processedAssetPath = dirAssets + density.path + filename
+            sendAssetToPngPipeline(rawAssetPath, density, processedAssetPath)
+
+    # Process assets for iOS (e.g: ...@3X)
+    else:
+        for density in iosDensities:
+            processedAssetPath = dirAssets + filenameAndExtension[0] + density.suffix + filenameAndExtension[1]
+            sendAssetToPngPipeline(rawAssetPath, density, processedAssetPath)
+
     print(filename + ": Processed the asset for every screen density")
 
+def sendAssetToPngPipeline(rawAssetPath, density, processedAssetPath):
+    filename = os.path.basename(rawAssetPath)
+    print("{0}: SCALING to {1}".format(filename, density.name))
+    scaleImage(rawAssetPath, density.scaleFactor, processedAssetPath)
+    print(filename + ": COMPRESSING for " + density.name)
+    compressPNG(processedAssetPath)
+
 # Scale the asset for a given screen density using FFMPEG
-def scaleImage(filename, assetPath, drawableDensity):
-    print("{0}: SCALING to {1}".format(filename, drawableDensity.name))
-    os.system("ffmpeg -loglevel error -y -i {0} -vf scale=iw*{1}:-1 {2}".format(assetPath, drawableDensity.scaleFactor, dirAssets + drawableDensity.path + filename))
+def scaleImage(inputPath, scaleFactor, outputPath):
+    os.system("ffmpeg -loglevel error -y -i {0} -vf scale=iw*{1}:-1 {2}".format(inputPath, scaleFactor, outputPath))
 
 # Compress a PNG asset using PNGQuant
-def compressPNG(filename, assetPath, drawableDensity):
-    print(filename + ": COMPRESSING for " + drawableDensity.name)
-    os.system("pngquant {0} --force --output {1}".format(assetPath, dirAssets + drawableDensity.path + filename))
+def compressPNG(inputPath):
+    os.system("pngquant {0} --force --ext .png".format(inputPath))
 
 # Remove asset in every screen density
 def deleteAsset(assetName):
-    for density in drawablesDensities:
+    for density in androidDensities:
         os.remove( dirAssets + density.path + assetName)
         print(assetName + ": DELETED asset for " + density.name)
 
