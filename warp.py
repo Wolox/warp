@@ -59,6 +59,7 @@ modifiedFiles = []
 targetPlatform = ""
 shouldCleanProject = False
 shouldRunSilently = False
+versionName = "1.0.0"
 
 # Script entry point
 def main():
@@ -93,6 +94,9 @@ def parseCommandLineOptions():
     dest="output",
     help="directory where the processed assets will be placed",
     metavar="\"proccesed/assets/path\"")
+    baseGroup.add_argument('-v','--version',
+    action='version',
+    version='%(prog)s ' + versionName)
 
     buildGroup = parser.add_argument_group('Processing options')
     buildGroup.add_argument("-c", "--clean",
@@ -135,6 +139,7 @@ def greet():
     "    *                                *",
     "    *  Wolox Assets Rapid Processor  *",
     "    **********************************",
+    "                 v."+ versionName +"                   ",
     "                                      "
     ]
     if not shouldRunSilently:
