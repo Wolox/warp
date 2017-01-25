@@ -58,11 +58,13 @@ newFiles = []
 modifiedFiles = []
 targetPlatform = ""
 shouldCleanProject = False
+shouldRunSilently = False
 
 # Script entry point
 def main():
     parseCommandLineOptions()
     greet()
+    setUpPathVariables()
     if shouldCleanProject: cleanProject()
     makeRequiredDirectories()
     classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles)
@@ -71,6 +73,54 @@ def main():
     processModifiedAssets(modifiedFiles)
     processDeletedAssets(deletedFiles)
     goodbye()
+
+# Parse command line options and store them in variables
+def parseCommandLineOptions():
+    parser = argparse.ArgumentParser(description="Seamless scaling and compression of assets for every screen density")
+
+    baseGroup = parser.add_argument_group('Basic usage')
+    baseGroup.add_argument("-t", "--target",
+    dest="target",
+    required=True,
+    choices=[TARGET_ANDROID, TARGET_IOS],
+    help="specifies the platform where the assets will be used",
+    metavar=TARGET_ANDROID +"/" + TARGET_IOS)
+    baseGroup.add_argument("-i", "--input",
+    dest="input",
+    help="directory where the raw assets are located",
+    metavar="\"raw/assets/path\"")
+    baseGroup.add_argument("-o", "--output",
+    dest="output",
+    help="directory where the processed assets will be placed",
+    metavar="\"proccesed/assets/path\"")
+
+    buildGroup = parser.add_argument_group('Processing options')
+    buildGroup.add_argument("-c", "--clean",
+    action="store_true",
+    default=False,
+    dest="clean",
+    help="force every asset to be processed from scratch")
+
+    uiGroup = parser.add_argument_group('UI')
+    uiGroup.add_argument("-s", "--silent",
+    action="store_true",
+    default=False,
+    dest="silent",
+    help="doesn't show the welcome message")
+
+    # Save parsed options as global variables
+    global targetPlatform
+    global dirRaw
+    global dirAssets
+    global shouldCleanProject
+    global shouldRunSilently
+
+    args = parser.parse_args()
+    targetPlatform = args.target
+    if args.input: dirRaw = args.input
+    if args.output: dirAssets = args.output
+    shouldCleanProject = args.clean
+    shouldRunSilently = args.silent
 
 # Greet
 def greet():
@@ -87,43 +137,14 @@ def greet():
     "    **********************************",
     "                                      "
     ]
-    for line in logo:
-        print(Colors.PURPLE + line + Colors.ENDC)
+    if not shouldRunSilently:
+        for line in logo:
+            print(Colors.PURPLE + line + Colors.ENDC)
 
-# Parse command line options and store them in variables
-def parseCommandLineOptions():
-    parser = argparse.ArgumentParser(description="Seamless scaling and compression of assets for every screen density")
-    parser.add_argument("-t", "--target",
-    dest="target",
-    required=True,
-    choices=[TARGET_ANDROID, TARGET_IOS],
-    help="specifies the platform where the assets will be used",
-    metavar=TARGET_ANDROID +"/" + TARGET_IOS)
-    parser.add_argument("-i", "--input",
-    dest="input",
-    help="directory where the raw assets are located",
-    metavar="DIRECTORY")
-    parser.add_argument("-o", "--output",
-    dest="output",
-    help="directory where the processed assets will be placed",
-    metavar="DIRECTORY")
-    parser.add_argument("-c", "--clean",
-    action="store_true",
-    default=False,
-    dest="clean",
-    help="force every asset to be processed from scratch")
-
-    # Save parsed options as global variables
-    global targetPlatform
-    global dirRaw
-    global dirAssets
-    global shouldCleanProject
-
-    args = parser.parse_args()
-    targetPlatform = args.target
-    if args.input: dirRaw = args.input
-    if args.output: dirAssets = args.output
-    shouldCleanProject = args.clean
+# Adds neccesary PATH variables. Useful when running the script from a non
+# user shell (like with Gradle in Android)
+def setUpPathVariables():
+    os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
 
 # Clears previously processed assets and the hash storage file
 def cleanProject():
@@ -266,11 +287,11 @@ def sendAssetToPngPipeline(rawAssetPath, density, processedAssetPath):
 
 # Scale the asset for a given screen density using FFMPEG
 def scaleImage(inputPath, scaleFactor, outputPath):
-    os.system("ffmpeg -loglevel error -y -i {0} -vf scale=iw*{1}:-1 {2}".format(inputPath, scaleFactor, outputPath))
+    os.system("ffmpeg -loglevel error -y -i \"{0}\" -vf scale=iw*{1}:-1 \"{2}\"".format(inputPath, scaleFactor, outputPath))
 
 # Compress a PNG asset using PNGQuant
 def compressPNG(inputPath):
-    os.system("pngquant {0} --force --ext .png".format(inputPath))
+    os.system("pngquant \"{0}\" --force --ext .png".format(inputPath))
 
 # Remove asset in every screen density
 def deleteAsset(assetName):

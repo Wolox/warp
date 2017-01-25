@@ -1,0 +1,19 @@
+task warpAssets(type: Exec) {
+    group = 'Optimizations'
+    description = 'Convert and optimize assets for every screen density using WARP'
+
+    def absolutePath = file('..') // Get project absolute path
+    def rawPath = "$absolutePath/raw/" // The folder where the raw assets are located
+    def resPath = "$absolutePath/app/src/main/res/" // Android's 'res' folder
+
+    commandLine = '../scripts/warp/warp.py'
+    args = [
+            '--target', 'android',
+            '--input', rawPath,
+            '--output', resPath,
+            '--silent'
+            ]
+
+}
+
+preBuild.dependsOn warpAssets
