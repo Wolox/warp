@@ -1,28 +1,46 @@
-# WARP - Seamless scaling and compression of assets for every screen density
-WARP automagically enforces consistency of design, scales and greatly optimizes
+# WARP - Seamless mobile assets management
+
+## Table of contents
+
+* [What is WARP?](#topic-what-is-warp)
+* [Installation](#topic-installation)
+* [Basic usage](#topic-basic-usage)
+* [Advanced usage](#topic-advanced-usage)
+* [Android Studio integration](#topic-android-studio-integration)
+* [Benchmarks](#topic-benchmarks)
+* [Contributing](#topic-contributing)
+* [About](#topic-about)
+* [License](#topic-license)
+
+## <a name="topic-what-is-warp"></a> What is WARP?
+WARP is a tool for automagically enforcing consistency of design, scaling and greatly optimizing
 the assets of your mobile project (Android and iOS).
 
-* Consistency
+### Consistency
 Forget about maintaining hundreds of assets, keep only one version
 of every asset and let WARP deal with the hassle of maintaining each platform
 specific screen density variant. That is `drawable-XXX` folders in Android and
 `assetName@XXX` files in iOS.
 
-* Scaling
+### Scaling
 Don't waste time using external tools scaling assets, WARP will generate every
 asset for you.
 
-* Optimization *(or how to make you app size way smaller)*
+### Optimization *(or how to make you app size way smaller)*
 WARP uses top notch algorithms to make your assets lightweight without any
-noticeable loss of quality. You can spect a reduction in your assets total size
+noticeable loss of quality. You can expect a reduction in your assets total size
 of at least 50%.
 
-* Fast integration
+### Fast integration
 You can safely integrate WARP into your building pipeline, WARP will skip
 already processed assets. If no changes were made in your assets folder, WARP
 can completely run in almost 0 seconds.
 
-## Installation
+### WARP Demo
+
+[![IMAGE ALT TEXT](https://cloud.githubusercontent.com/assets/4109119/22380156/2a507264-e49b-11e6-820e-10e042db1d2d.jpg)](http://www.youtube.com/watch?v=9_81-IfLIbQ "WARP Android Studio Integration")
+
+## <a name="topic-installation"></a> Installation
 
 ### Dependencies
 WARP uses `pngquant` to achieve astonishing good compression ratios and
@@ -41,10 +59,12 @@ brew install pngquant
 brew install ffmpeg
 ```
 
-### WARP
-Warp is a self-contained utility, just download `warp.py` and you are good to go.
+**Important:** Make sure that both `pngquant` and `ffmpeg` are set in your `PATH` variable.
 
-## Basic usage
+### WARP
+Warp is a self-contained utility, just download [warp.py](https://raw.githubusercontent.com/Wolox/warp/master/warp.py) and you are good to go.
+
+## <a name="topic-basic-usage"></a> Basic usage
 A basic usage of WARP looks like this:
 ```shell
 ./warp.py --target android
@@ -62,7 +82,7 @@ generate assets for that platform!
 
 **Tip:** You can view a full list of commands with `./warp.py --help`
 
-## Advanced usage
+## <a name="topic-advanced-usage"></a> Advanced usage
 
 * Specify custom input and output directories with `--input [PATH]` and `--output [PATH]`
 * Clear the output folder and process every asset again with `--clean`
@@ -70,17 +90,16 @@ generate assets for that platform!
 * Every option has a shorthand version, so you can use `-i` instead of `--input`
 or `-c` instead of `--clean` for example.
 
-## Integration with Android Studio
+## <a name="topic-android-studio-integration"></a> Integration with Android Studio
 
 WARP can be easily integrated with Android Studio using a Gradle task.
 
 ##### Installation
 
-1. Download `warp.py`
-2. Download `warp_task.gradle`
+1. Download [warp.py](https://raw.githubusercontent.com/Wolox/warp/master/warp.py)
+2. Download [warp_task.gradle](https://raw.githubusercontent.com/Wolox/warp/master/warp_task.gradle)
 3. Place both files under `YOUR/PROJECT/PATH/scripts/warp/`
 4. Place the following line in your project's `app.gradle` file:
-
 ```
 apply plugin: 'com.android.application'
 apply from: '../scripts/warp/warp_task.gradle' //Add this line
@@ -96,7 +115,10 @@ directory.
 That's it. Remember to run "sync with gradle" after adding new assets, this
 will run WARP and generate the assets for your project.
 
-## Benchmarks
+### WARP Android Studio integration demo
+[![IMAGE ALT TEXT](https://cloud.githubusercontent.com/assets/4109119/22380198/4abeb5c4-e49b-11e6-8fe9-36f070ea6fcd.jpg)](http://www.youtube.com/watch?v=6KeBhKNVVL0 "WARP Android Studio Integration")
+
+## <a name="topic-benchmarks"></a> Benchmarks
 Sample: 256 icon assets from an Android Play Store published app. The assets where
 converted and optimized to HDPI, XHDPI, XXHDPI and XXXHDPI screen densities.
 
@@ -110,7 +132,7 @@ converted and optimized to HDPI, XHDPI, XXHDPI and XXXHDPI screen densities.
 * Size after optimization: 1,7 MB
 * Total size reduction: 50%
 
-## Contributing
+## <a name="topic-contributing"></a> Contributing
 
 1. Fork it
 2. Create your feature branch (`git checkout -b my-new-feature`)
@@ -118,14 +140,14 @@ converted and optimized to HDPI, XHDPI, XXHDPI and XXXHDPI screen densities.
 4. Push your branch (`git push origin my-new-feature`)
 5. Create a new Pull Request
 
-## About ##
+## <a name="topic-about"></a> About
 
 This project is maintained by [Juan Ignacio Molina](https://github.com/juanignaciomolina)
 and it was written by [Wolox](http://www.wolox.com.ar).
 
 ![Wolox](https://raw.githubusercontent.com/Wolox/press-kit/master/logos/logo_banner.png)
 
-## License
+## <a name="topic-license"></a> License
 
 **WARP** is available under the MIT [license](https://raw.githubusercontent.com/Wolox/warp/master/LICENSE.md).
 

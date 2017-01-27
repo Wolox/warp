@@ -77,7 +77,7 @@ def main():
 
 # Parse command line options and store them in variables
 def parseCommandLineOptions():
-    parser = argparse.ArgumentParser(description="Seamless scaling and compression of assets for every screen density")
+    parser = argparse.ArgumentParser(description="Seamless mobile assets management")
 
     baseGroup = parser.add_argument_group('Basic usage')
     baseGroup.add_argument("-t", "--target",
