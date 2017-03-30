@@ -14,7 +14,7 @@ task warpAssets(type: Exec) {
             ]
 }
 
-task cleanAssets(type: Exec) {
+task cleanWarpAssets(type: Exec) {
     group = 'Optimizations'
     description = 'Clean converted assets'
 
@@ -33,8 +33,7 @@ task cleanAssets(type: Exec) {
 }
 
 preBuild.dependsOn warpAssets
-clean.dependsOn cleanWarpAssets
 
 // Uncomment if you want to clean all the assets when running the "clean" task.
 // Caution: It could take a long time to "Rebuild" or "Clean" Project.
-// clean.dependsOn cleanAssets
+// clean.dependsOn cleanWarpAssets

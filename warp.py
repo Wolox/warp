@@ -108,7 +108,7 @@ def parseCommandLineOptions():
     default=False,
     dest="clean",
     help="remove every generated asset")
-    buildGroup.add_argument("-F", "--force-clean",
+    buildGroup.add_argument("-f", "--force-clean",
     action="store_true",
     default=False,
     dest="force_clean",
