@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import os, glob, hashlib, pickle, argparse, shutil
+import os, glob, hashlib, pickle, argparse, shutil, ntpath
 
 ######################### Classes ##############################
 class AndroidDensity:
@@ -59,20 +59,24 @@ modifiedFiles = []
 targetPlatform = ""
 shouldCleanProject = False
 shouldRunSilently = False
-versionName = "1.0.0"
+versionName = "1.0.1"
 
 # Script entry point
 def main():
     parseCommandLineOptions()
     greet()
     setUpPathVariables()
-    if shouldCleanProject: cleanProject()
-    makeRequiredDirectories()
-    classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles)
-    processUpToDateAssets(upToDateFiles)
-    processNewAssets(newFiles)
-    processModifiedAssets(modifiedFiles)
-    processDeletedAssets(deletedFiles)
+
+    if shouldCleanProject or shouldForceCleanProject:
+        cleanProject()
+    else:
+        makeRequiredDirectories()
+        classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles)
+        processUpToDateAssets(upToDateFiles)
+        processNewAssets(newFiles)
+        processModifiedAssets(modifiedFiles)
+        processDeletedAssets(deletedFiles)
+
     goodbye()
 
 # Parse command line options and store them in variables
@@ -103,7 +107,12 @@ def parseCommandLineOptions():
     action="store_true",
     default=False,
     dest="clean",
-    help="force every asset to be processed from scratch")
+    help="remove every generated asset")
+    buildGroup.add_argument("-f", "--force-clean",
+    action="store_true",
+    default=False,
+    dest="force_clean",
+    help="forces the removal of the output folder")
 
     uiGroup = parser.add_argument_group('UI')
     uiGroup.add_argument("-s", "--silent",
@@ -117,6 +126,7 @@ def parseCommandLineOptions():
     global dirRaw
     global dirAssets
     global shouldCleanProject
+    global shouldForceCleanProject
     global shouldRunSilently
 
     args = parser.parse_args()
@@ -124,6 +134,7 @@ def parseCommandLineOptions():
     if args.input: dirRaw = args.input
     if args.output: dirAssets = args.output
     shouldCleanProject = args.clean
+    shouldForceCleanProject = args.force_clean
     shouldRunSilently = args.silent
 
 # Greet
@@ -154,11 +165,34 @@ def setUpPathVariables():
 # Clears previously processed assets and the hash storage file
 def cleanProject():
     print(Colors.YELLOW + "Cleaning previously processed assets..." + Colors.ENDC)
-    if dirRaw != "/" and os.path.exists(dirRaw + STORAGE_FILE_NAME):
+    # Dictionary of previously hashed files: <file path, MD5 hash>
+    storedHashedFiles = loadHashedFiles()
+
+    # Delete all the stored files
+    for path, md5 in storedHashedFiles.iteritems():
+        assetToClean = ntpath.basename(path)
+        print(Colors.BLUE + "DELETING ASSET: " + assetToClean + Colors.ENDC)
+        deleteAsset(assetToClean)
+
+    # Remove generated density folders if empty
+    for density in androidDensities:
+        densityDir = dirAssets + density.path
+        if os.path.exists(densityDir) and (os.listdir(densityDir) == [] or shouldForceCleanProject) :
+            print(Colors.BLUE + "DELETING ASSET DIRECTORY: " + densityDir + Colors.ENDC)
+            if shouldForceCleanProject:
+                shutil.rmtree(densityDir)
+            else :
+                os.rmdir(densityDir)
+
+    # Remove assets output folder if empty
+    if os.path.exists(dirAssets) and os.listdir(dirAssets) == [] :
+        print(Colors.BLUE + "DELETING EMPTY OUTPUT DIRECTORY: " + dirAssets + Colors.ENDC)
+        os.rmdir(dirAssets)
+
+    # Remove storage file
+    if os.path.exists(dirRaw + STORAGE_FILE_NAME):
         os.remove(dirRaw + STORAGE_FILE_NAME)
 
-    if dirAssets != "/" and os.path.exists(dirAssets):
-        shutil.rmtree(dirAssets)
     print(Colors.YELLOW + "Assets cleared" + Colors.ENDC)
 
 # Make the required directories to process asssets if they doesn't exist already
@@ -301,8 +335,9 @@ def compressPNG(inputPath):
 # Remove asset in every screen density
 def deleteAsset(assetName):
     for density in androidDensities:
-        os.remove( dirAssets + density.path + assetName)
-        print(assetName + ": DELETED asset for " + density.name)
+        if os.path.exists(dirAssets + density.path + assetName):
+            os.remove(dirAssets + density.path + assetName)
+            print(assetName + ": DELETED asset for " + density.name)
 
 # Goodbye
 def goodbye():
