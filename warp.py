@@ -1,5 +1,8 @@
 #!/usr/bin/python
 import os, glob, hashlib, pickle, argparse, shutil, ntpath
+import os, glob, hashlib, pickle, argparse, shutil, multiprocessing, signal, sys
+from multiprocessing import Pool
+from functools import partial
 
 ######################### Classes ##############################
 class AndroidDensity:
@@ -52,6 +55,7 @@ TARGET_ANDROID = "android"
 TARGET_IOS = "ios"
 
 # Variables with default values
+poolThreads = multiprocessing.cpu_count() + 1
 upToDateFiles = []
 deletedFiles = []
 newFiles = []
@@ -98,9 +102,15 @@ def parseCommandLineOptions():
     dest="output",
     help="directory where the processed assets will be placed",
     metavar="\"proccesed/assets/path\"")
-    baseGroup.add_argument('-v','--version',
+    baseGroup.add_argument("-v", "--version",
     action='version',
     version='%(prog)s ' + versionName)
+    baseGroup.add_argument("-T", "--threads",
+    dest="cores",
+    help="number of threads to use while processing the assets",
+    metavar="N",
+    default=multiprocessing.cpu_count() + 1,
+    type=int)
 
     buildGroup = parser.add_argument_group('Processing options')
     buildGroup.add_argument("-c", "--clean",
@@ -128,6 +138,7 @@ def parseCommandLineOptions():
     global shouldCleanProject
     global shouldForceCleanProject
     global shouldRunSilently
+    global poolThreads
 
     args = parser.parse_args()
     targetPlatform = args.target
@@ -136,6 +147,7 @@ def parseCommandLineOptions():
     shouldCleanProject = args.clean
     shouldForceCleanProject = args.force_clean
     shouldRunSilently = args.silent
+    poolThreads = args.threads if args.threads > 0 else 1
 
 # Greet
 def greet():
@@ -236,7 +248,7 @@ def classifyRawFiles(upToDateFiles, deletedFiles, newFiles, modifiedFiles):
                 modifiedFiles.append(path)
 
             del storedHashedFiles[path] # Removed the processed entry
-        # CASE 3: The file isn't present on the previous hash dictinoary, it must be a new file
+        # CASE 3: The file isn't present on the previous hash dictionary, it must be a new file
         else:
             newFiles.append(path)
 
@@ -277,19 +289,27 @@ def processUpToDateAssets(upToDateFiles):
     for path in upToDateFiles:
         print(Colors.BLUE + os.path.basename(path) + ": STATE > UP TO DATE" + Colors.ENDC)
 
+# Execute a specific function in a pool of workers for every "argument" in mapArguments.
+def mapInWorkers(function, mapArguments):
+    pool = Pool(poolThreads)
+
+    try:
+        pool.map_async(function, mapArguments).get(0xFFFF)
+        pool.close()
+    except KeyboardInterrupt:
+        print(Colors.RED + "Interrupted" + Colors.ENDC)
+        pool.terminate()
+        sys.exit(1)
+
 # Process files that are new to the project
 def processNewAssets(newFiles):
-    for path in newFiles:
-        print(Colors.BLUE + os.path.basename(path) + ": STATE > NEW" + Colors.ENDC)
-        processRawPngAsset(path)
+    processNew = partial(processRawPngAssetWithTitle, "{}: STATE > NEW")
+    mapInWorkers(processNew, newFiles)
 
 # Process files that were modified in the project
 def processModifiedAssets(modifiedFiles):
-    for path in modifiedFiles:
-        assetName = os.path.basename(path)
-        print(Colors.BLUE + assetName + ": STATE > CHANGED" + Colors.ENDC)
-        deleteAsset(assetName)
-        processRawPngAsset(path)
+    processModified = partial(processRawPngAssetWithTitle, "{}: STATE > UPDATED")
+    mapInWorkers(processModified, modifiedFiles)
 
 # Process files that were deleted from the project
 def processDeletedAssets(deletedFiles):
@@ -297,6 +317,11 @@ def processDeletedAssets(deletedFiles):
         assetName = os.path.basename(path)
         print(Colors.BLUE + assetName + ": STATE > REMOVED" + Colors.ENDC)
         deleteAsset(assetName)
+
+# Prints the title, replacing the keyword for the path basename, scale and compress the asset for every screen density
+def processRawPngAssetWithTitle(title, rawAssetPath):
+    print (Colors.BLUE + title.format(os.path.basename(rawAssetPath)) + Colors.ENDC)
+    processRawPngAsset(rawAssetPath)
 
 # Scale and compress the asset for every screen density
 def processRawPngAsset(rawAssetPath):
