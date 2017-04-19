@@ -106,7 +106,7 @@ def parseCommandLineOptions():
     action='version',
     version='%(prog)s ' + versionName)
     baseGroup.add_argument("-T", "--threads",
-    dest="cores",
+    dest="threads",
     help="number of threads to use while processing the assets",
     metavar="N",
     default=multiprocessing.cpu_count() + 1,
