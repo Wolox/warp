@@ -61,7 +61,7 @@ brew install ffmpeg
 
 **Important:** Make sure that both `pngquant` and `ffmpeg` are set in your `PATH` variable.
 
-### WARP
+### WARP
 Warp is a self-contained utility, just download [warp.py](https://raw.githubusercontent.com/Wolox/warp/master/warp.py) and you are good to go.
 
 ## <a name="topic-basic-usage"></a> Basic usage
