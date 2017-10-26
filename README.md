@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/4109119/32071243-fc049118-ba8e-11e7-805d-c39a17ac36ec.png"/>
+</p>
+
+
 # WARP - Seamless mobile assets management
 
 ## Table of contents
